@@ -1,13 +1,16 @@
 #ifndef METERWINDOW_H
 #define METERWINDOW_H
 
+#include <sys/types.h>
+#include "myudp.h"
 #include <QMainWindow>
 #include <QtGui>
 #include <thread>
 #include <qthread.h>
-#include "myudp.h"
+
 
 namespace Ui {
+class MyUDP;
 class MeterWindow;
 }
 
@@ -16,7 +19,8 @@ class MeterWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MeterWindow(QWidget *parent = 0);    
+    explicit MeterWindow(QWidget *parent = 0);
+    //MyUDP *myudp;
     ~MeterWindow();
     testFunction();
     Ui::MeterWindow *ui;

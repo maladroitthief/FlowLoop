@@ -40,9 +40,10 @@ MyUDP::MyUDP(Ui::MeterWindow ui){
 }
 void MyUDP::initialize(){
     //read and write commands
+    //83C20011 0000C000 01FEFF00 FFFFFF00
     QString read = "83420011";
     QString write = "83c20011";
-    QString init = "0000c00000feff00ffffff00";
+    QString init = "0000c00001feff00ffffff00";
     //initializing DDR
     this->sendmsg((write+init).toStdString().c_str());
     box->insertPlainText("Initializing DDR bits...\n");
@@ -67,6 +68,8 @@ void MyUDP::runProve(){
     start->setEnabled(false);
     stop->setEnabled(true);
     proving=true;
+    this->sendmsg(clearset.toStdString().c_str());
+    this->sendmsg(clearclr.toStdString().c_str());
     while(proving){
         this->readData();
     }
@@ -81,7 +84,8 @@ void MyUDP::readData(){
     //latch registers
     msg.clear();
     this->sendmsg(latch.toStdString().c_str());
-    for(int i=0;i<72;i++){
+    this->sendmsg(latchclr.toStdString().c_str());
+    for(int i=0;i<82;i++){
         //sending the write address and the read
         this->sendmsg((waddr+address[i]).toStdString().c_str());
         this->sendmsg(raddr.toStdString().c_str());
@@ -94,13 +98,26 @@ void MyUDP::displayData(){
     for(int i=0;i<30;i++){
         edits[i]->setText(format(msg.value(keys[i]).toStdString().c_str()));
     }
-    //this handles A,B and prover timer counts
-    for(int i=40;i<62;i++){
+    //this handles A and B counts
+    for(int i=40;i<60;i++){
+        edits[i]->setText(format(msg.value(keys[i-10]).toStdString().c_str()));
+    }
+    //Prover Timers
+    for(int i=60;i<62;i++){
         edits[i]->setText(format(msg.value(keys[i+10]).toStdString().c_str()));
     }
     //this handles phase angle
     for(int i=30;i<40;i++){
-        edits[i]->setText("¯\\_(ツ)_/¯");
+        //edits[i]->setText("¯\\_(ツ)_/¯");
+        double p,f,r,e;
+        p=format(msg.value(keys[i+42]).toStdString().c_str()).toDouble();
+        f=format(msg.value(keys[i-30]).toStdString().c_str()).toDouble();
+        r=format(msg.value(keys[i-20]).toStdString().c_str()).toDouble();
+        e=format(msg.value(keys[i-10]).toStdString().c_str()).toDouble();
+        if(f!=0&&r!=0&&e!=0)
+            edits[i]->setText(QString::number((p/(f+r+e))*180));
+        else
+            edits[i]->setText("0");
     }
 }
 QString MyUDP::format(char const* c){
@@ -127,8 +144,8 @@ void MyUDP::signalRead(){
         socket->readDatagram(datagram.data(), datagram.size());
         datagram = datagram.toHex();
         msg.insert(QString::fromStdString(datagram.data()).mid(2,2),QString::fromStdString(datagram.data()));
-        box->insertPlainText(QString::fromStdString(datagram.data()).mid(2,2));
-        box->insertPlainText(tr("\nReceived datagram: \"%1\"\n").arg(datagram.data()));
+        //box->insertPlainText(QString::fromStdString(datagram.data()).mid(2,2));
+        //box->insertPlainText(tr("\nReceived datagram: \"%1\"\n").arg(datagram.data()));
     }
 }
 void MyUDP::getUI(Ui::MeterWindow ui){

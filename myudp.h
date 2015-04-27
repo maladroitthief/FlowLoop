@@ -13,6 +13,7 @@
 
 namespace Ui {
 class MeterWindow;
+class MyUDP;
 }
 
 class MyUDP : public QObject{
@@ -20,6 +21,7 @@ class MyUDP : public QObject{
 public:
     explicit MyUDP(QObject *parent = 0);
     MyUDP(Ui::MeterWindow ui);
+    Ui::MyUDP *myudp;
     QHostAddress localIP;
     void initialize();
     void setEdit();
@@ -44,10 +46,13 @@ public:
                 ,*prover1,*prover2;
     QMap<QString,QString> msg;
     QString latch = "01c2001000008000";
+    QString latchclr = "01c2001000000000";
+    QString clearset = "01C2041001000000";
+    QString clearclr = "01C2041000000000";
     QString prove = "01c2001000004000";
     QString waddr = "01c20410";
     QString raddr = "82420410";
-    QString address[72]={
+    QString address[82]={
         "00000000","00020000","00040000","00060000","00080000","000A0000","000C0000","000E0000",
         "00100000","00120000","00140000","00160000","00180000","001A0000","001C0000","001E0000",
         "00200000","00220000","00240000","00260000","00280000","002A0000","002C0000","002E0000",
@@ -56,7 +61,9 @@ public:
         "00500000","00520000","00540000","00560000","00580000","005A0000","005C0000","005E0000",
         "00600000","00620000","00640000","00660000","00680000","006A0000","006C0000","006E0000",
         "00700000","00720000","00740000","00760000","00780000","007A0000","007C0000","007E0000",
-        "00800000","00820000","00840000","00860000","00880000","008A0000","008C0000","008E0000"};
+        "00800000","00820000","00840000","00860000","00880000","008A0000","008C0000","008E0000",
+        "00900000","00920000","00940000","00960000","00980000","009A0000","009C0000","009E0000",
+        "00A00000","00A20000"};
     QLineEdit *edits[62]={ loop1f0,loop1f1,loop1f2,loop1f3,loop1f4,loop1f5,loop1f6,loop1f7,loop1f8,loop1f9
                           ,loop1r0,loop1r1,loop1r2,loop1r3,loop1r4,loop1r5,loop1r6,loop1r7,loop1r8,loop1r9
                           ,loop1e0,loop1e1,loop1e2,loop1e3,loop1e4,loop1e5,loop1e6,loop1e7,loop1e8,loop1e9
@@ -64,7 +71,7 @@ public:
                           ,loop1a0,loop1a1,loop1a2,loop1a3,loop1a4,loop1a5,loop1a6,loop1a7,loop1a8,loop1a9
                           ,loop1b0,loop1b1,loop1b2,loop1b3,loop1b4,loop1b5,loop1b6,loop1b7,loop1b8,loop1b9
                           ,prover1,prover2};
-    QString keys[72]={
+    QString keys[82]={
         "01","03","05","07","09","0b","0d","0f",
         "11","13","15","17","19","1b","1d","1f",
         "21","23","25","27","29","2b","2d","2f",
@@ -73,7 +80,9 @@ public:
         "51","53","55","57","59","5b","5d","5f",
         "61","63","65","67","69","6b","6d","6f",
         "71","73","75","77","79","7b","7d","7f",
-        "81","83","85","87","89","8b","8d","8f"};
+        "81","83","85","87","89","8b","8d","8f",
+        "91","93","95","97","99","9b","9d","9f",
+        "a1","a3"};
     QMap<QString,QLineEdit> loop1edits = {};
     ~MyUDP();
 signals:
