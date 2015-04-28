@@ -27,9 +27,12 @@ public:
 
 private slots:
     void on_actionConnect_triggered();
+    void on_actionQuit_triggered();
 
 private:
 
+protected:
+     void closeEvent(QCloseEvent *event);
 };
 
 #endif // METERWINDOW_H

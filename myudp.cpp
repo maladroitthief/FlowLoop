@@ -3,44 +3,29 @@
 MyUDP::MyUDP(QObject *parent) : QObject(parent){
 
 }
-MyUDP::MyUDP(Ui::MeterWindow ui){
-    //creating pointers to the ui so printing is possible.
+void MyUDP::initialize(Ui::MeterWindow ui){
+    //assigning pointers for interacting with gui
     nui = &ui;
     box = nui->debugWindow;
     start = nui->loop1start;
     stop = nui->loop1end;
+    svp = nui->loop1svp;
     connect(start,SIGNAL(clicked()),this,SLOT(runProve()));
+    connect(svp,SIGNAL(clicked()),this,SLOT(svpProve()));
     connect(stop,SIGNAL(clicked()),this,SLOT(stopProve()));
+    //setting the static IP
     localIP.setAddress("192.168.1.88");
-    //auto assign IP
-    //this is still under development
-    /*
-    foreach (const QHostAddress &address, QNetworkInterface::allAddresses()) {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol && address != QHostAddress(QHostAddress::LocalHost)){
-             localIP=address;
-        }
-    }
-
-    box->insertPlainText(localIP.toString());
-    box->insertPlainText("\n");
-    */
     //pointing to all the windows
     this->setEdit();
-
     //creating the socket at IP and port 1280(source port)
     socket = new QUdpSocket(this);
     if(socket->bind(localIP,1280)){
         box->insertPlainText("Bind Success\n");
-
     }
     else
         box->insertPlainText("Bind failed\n");
     connect(socket, SIGNAL(readyRead()),this, SLOT(signalRead()));
-    this->initialize();
-}
-void MyUDP::initialize(){
     //read and write commands
-    //83C20011 0000C000 01FEFF00 FFFFFF00
     QString read = "83420011";
     QString write = "83c20011";
     QString init = "0000c00001feff00ffffff00";
@@ -60,26 +45,58 @@ void MyUDP::initialize(){
     if(init.compare(datagram.data())){
         box->insertPlainText("Success.\n");
         start->setEnabled(true);
+        svp->setEnabled(true);
     }
     else
         box->insertPlainText("Failure.\n");
 }
 void MyUDP::runProve(){
+    //running a prove
     start->setEnabled(false);
+    svp->setEnabled(false);
     stop->setEnabled(true);
     proving=true;
     this->sendmsg(clearset.toStdString().c_str());
+    this->delay();
     this->sendmsg(clearclr.toStdString().c_str());
     while(proving){
         this->readData();
     }
 }
+void MyUDP::svpProve(){
+    //small volume proving
+    start->setEnabled(false);
+    svp->setEnabled(false);
+    stop->setEnabled(true);
+    proving=true;
+    //clear the existing data
+    this->sendmsg(clearset.toStdString().c_str());
+    this->sendmsg(clearclr.toStdString().c_str());
+    this->sendmsg(svpstart0.toStdString().c_str());
+    this->sendmsg(svpstart1.toStdString().c_str());
+    while(proving){
+        this->readSVP();
+    }
+}
 void MyUDP::stopProve(){
+    //halting a prove
     start->setEnabled(true);
+    svp->setEnabled(true);
     stop->setEnabled(false);
     proving=false;
 }
-
+void MyUDP::readSVP(){
+    msg.clear();
+    this->sendmsg(svplatch.toStdString().c_str());
+    this->sendmsg(svplatchclr.toStdString().c_str());
+    for(int i=0;i<82;i++){
+        //sending the write address and the read
+        this->sendmsg((waddr+address[i]).toStdString().c_str());
+        this->sendmsg(raddr.toStdString().c_str());
+    }
+    this->delay(100);
+    this->displayData();
+}
 void MyUDP::readData(){
     //latch registers
     msg.clear();
@@ -90,7 +107,7 @@ void MyUDP::readData(){
         this->sendmsg((waddr+address[i]).toStdString().c_str());
         this->sendmsg(raddr.toStdString().c_str());
     }
-    this->delay();
+    this->delay(100);
     this->displayData();
 }
 void MyUDP::displayData(){
@@ -99,23 +116,30 @@ void MyUDP::displayData(){
         edits[i]->setText(format(msg.value(keys[i]).toStdString().c_str()));
     }
     //this handles A and B counts
+    //a edge=counts
+    //a count=
     for(int i=40;i<60;i++){
         edits[i]->setText(format(msg.value(keys[i-10]).toStdString().c_str()));
+    }
+    //A timer and B timer
+    for(int i=63;i<83;i++){
+        edits[i]->setText(format(msg.value(keys[i-13]).toStdString().c_str()));
     }
     //Prover Timers
     for(int i=60;i<62;i++){
         edits[i]->setText(format(msg.value(keys[i+10]).toStdString().c_str()));
     }
+    //Master Timer
+    edits[62]->setText(format(msg.value(keys[82]).toStdString().c_str()));
     //this handles phase angle
     for(int i=30;i<40;i++){
-        //edits[i]->setText("¯\\_(ツ)_/¯");
         double p,f,r,e;
         p=format(msg.value(keys[i+42]).toStdString().c_str()).toDouble();
         f=format(msg.value(keys[i-30]).toStdString().c_str()).toDouble();
         r=format(msg.value(keys[i-20]).toStdString().c_str()).toDouble();
         e=format(msg.value(keys[i-10]).toStdString().c_str()).toDouble();
         if(f!=0&&r!=0&&e!=0)
-            edits[i]->setText(QString::number((p/(f+r+e))*180));
+            edits[i]->setText(QString::number(fmod((p/(f+r+e))*180,360.0)));
         else
             edits[i]->setText("0");
     }
@@ -136,7 +160,7 @@ void MyUDP::sendmsg(QByteArray s){
     socket->writeDatagram(datagram.data(), datagram.size(), QHostAddress("192.168.1.121"), 27181);
 }
 void MyUDP::signalRead(){
-    box->insertPlainText("Recieving Message\n");
+    //box->insertPlainText("Recieving Message\n");
     //while datagrams are pending, read them, convert to hex, print to debug
     while (socket->hasPendingDatagrams()){
         QByteArray datagram;
@@ -220,6 +244,32 @@ void MyUDP::setEdit(){
     edits[59]=nui->loop1b9;
     edits[60]=nui->loop1t0;
     edits[61]=nui->loop1t1;
+    edits[62]=nui->loop1timer;
+    edits[63]=nui->loop1at0;
+    edits[64]=nui->loop1at1;
+    edits[65]=nui->loop1at2;
+    edits[66]=nui->loop1at3;
+    edits[67]=nui->loop1at4;
+    edits[68]=nui->loop1at5;
+    edits[69]=nui->loop1at6;
+    edits[70]=nui->loop1at7;
+    edits[71]=nui->loop1at8;
+    edits[72]=nui->loop1at9;
+    edits[73]=nui->loop1bt0;
+    edits[74]=nui->loop1bt1;
+    edits[75]=nui->loop1bt2;
+    edits[76]=nui->loop1bt3;
+    edits[77]=nui->loop1bt4;
+    edits[78]=nui->loop1bt5;
+    edits[79]=nui->loop1bt6;
+    edits[80]=nui->loop1bt7;
+    edits[81]=nui->loop1bt8;
+    edits[82]=nui->loop1bt9;
+}
+void MyUDP::delay(int i){
+    QTime dieTime= QTime::currentTime().addMSecs(i);
+    while(QTime::currentTime() < dieTime)
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
 }
 void MyUDP::delay(){
     QTime dieTime= QTime::currentTime().addMSecs(500);
